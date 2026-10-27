@@ -8,9 +8,11 @@ import { arenaCoreAbi, RECEIPT_TIMEOUT_MS } from "@arena/shared";
 import { chain, dep, keeperAccount, keeperWallet, publicClient } from "./chain";
 import { enqueueGauntlet, processGauntletJobs } from "./gauntlet";
 import { Indexer, refreshAgent } from "./indexer";
+import { rememberSession } from "./memory";
 
 export { refreshAgent } from "./indexer";
 export { replay } from "./gauntlet";
+export { rememberSession } from "./memory";
 
 type Logger = (m: string) => void;
 
@@ -86,6 +88,8 @@ export async function startKeeper(db: Db, opts: { log?: Logger } = {}) {
     onExploit: (id) => void enqueueGauntlet(db, { exploitId: id }),
     // A patched agent is re-tested against every exploit it has not passed.
     onConfigChange: (agentId) => void enqueueGauntlet(db, { exploitId: "*", agentId, manual: true }),
+    // A settled session goes into the shared attack memory (a failure here never stops indexing).
+    onSettled: (sid) => void rememberSession(db, sid, log).catch((e: Error) => log(`memory: could not remember session #${sid}: ${e.message}`)),
   });
 
   const pollMs = Number(process.env.KEEPER_POLL_MS || 2000);

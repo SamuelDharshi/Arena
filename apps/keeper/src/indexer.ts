@@ -65,14 +65,16 @@ export class Indexer {
   private touched = new Set<string>();
   private onExploit: (id: string) => void;
   private onConfigChange: (agentId: string) => void;
+  private onSettled: (sessionId: string) => void;
 
   constructor(
     private db: Db,
     private log: Logger,
-    hooks: { onExploit: (id: string) => void; onConfigChange: (agentId: string) => void },
+    hooks: { onExploit: (id: string) => void; onConfigChange: (agentId: string) => void; onSettled?: (sessionId: string) => void },
   ) {
     this.onExploit = hooks.onExploit;
     this.onConfigChange = hooks.onConfigChange;
+    this.onSettled = hooks.onSettled ?? (() => undefined);
   }
 
   async cursor(): Promise<bigint> {
@@ -167,14 +169,17 @@ export class Indexer {
       case "Breach":
         await db.query(`UPDATE sessions SET state = 2, payout = $2, breach_tx = $3, closed_at = $4 WHERE id = $1`, [str(args.sid), str(args.payout), tx, ts]);
         await db.query(`UPDATE agents SET last_breach_at = $2 WHERE id = $1`, [str(args.agentId), ts]);
+        this.onSettled(str(args.sid));
         break;
       case "SessionSurvived":
         await db.query(`UPDATE sessions SET state = 3, msg_count = $2, transcript_root = $3, close_tx = $4, closed_at = $5 WHERE id = $1`, [
           str(args.sid), Number(args.msgCount), args.transcriptRoot, tx, ts,
         ]);
+        this.onSettled(str(args.sid));
         break;
       case "SessionExpired":
         await db.query(`UPDATE sessions SET state = 4, close_tx = $2, closed_at = $3 WHERE id = $1`, [str(args.sid), tx, ts]);
+        this.onSettled(str(args.sid));
         break;
       case "StandingUpdated":
         await db.query(
