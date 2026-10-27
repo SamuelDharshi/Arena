@@ -16,5 +16,9 @@ What the arena proves: *"this exact config survived N attacks worth $B by U dist
 | Replay / reentrancy | per-intent nonce + deadline, EIP-712 domain separation per vault, reentrancy lock |
 | Griefing with idle sessions | 30-min TTL, one live session per (agent, attacker), ≤ 5/day; keeper expires idle sessions (refund) right at expiry |
 | Stale score | 7-day decay; unresolved Gauntlet exploit drops tier to 0 after its 6h deadline |
+| Attack memory poisoned to get honest mail escalated | only *successful* exploits (a confirmed payout to the attacker) trigger the automatic escalation; blocked attempts are recalled as context only, with lower confidence; records come from settled sessions with provenance (session id and transaction), and the audit ledger detects edits |
+| Attack paraphrased to dodge the memory match | memory is lexical (words and payout addresses); a paraphrase to a fresh address is judged by the agent's own defences (registry, caps, payables queue, verifier). The memory adds a layer, it never replaces one |
+| Memory or evidence backend down | recorded in the decision's evidence, decided without it, and the arena channel never pays; Sentinel-05 holds when its model is down |
+| Gauntlet answered from memory | shadow replays skip memory and payee evidence, so a pass reflects the agent's own defences |
 | Admin abuse | admin can tune tier params / pause new sessions; protocol wiring is one-time; admin cannot move vault funds |
 

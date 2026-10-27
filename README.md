@@ -878,3 +878,149 @@ Attackers can pay **$0.005 per message** with a gasless EIP-3009 signature inste
 
 ```ts
 // apps/gateway/src/x402.ts
+const gateway = createGatewayMiddleware({
+  sellerAddress,
+  networks: ["eip155:5042002"], // Arc testnet
+  facilitatorUrl: process.env.X402_FACILITATOR_URL ?? "https://gateway-api-testnet.circle.com",
+  description: "Arena: one attack message",
+});
+
+app.post("/v1/x402/sessions/:sid/messages", gateway.require("$0.005"), async (req, res) => {
+  const payer = getAddress(req.payment!.payer); // Gateway reports it lower-cased
+  res.json(await relayMessage(db, BigInt(req.params.sid), payer, req.body));
+});
+```
+
+Try it end to end: `X402_DEMO_URL=<gateway-url> pnpm x402:demo` (three paid messages, then an attested close).
+
+#### 3. Contracts API: deploying through Circle
+
+A `GrantPool` (the pool that pays exploit finders a bonus) is deployed through Circle's Smart Contract Platform API from a Circle wallet, then read back from the chain: [0x6cb0…6783](https://explorer.testnet.arc.io/address/0x6cb06dbf56c153c7c45fd40f0a75edf446aa6783).
+
+```ts
+// scripts/circle-contracts-demo.ts
+const created = await call<{ contractId: string; transactionId: string }>("/contracts/deploy", {
+  method: "POST",
+  body: JSON.stringify({
+    idempotencyKey: randomUUID(),
+    name: "ArenaGrantPool",
+    walletId,
+    blockchain: "ARC-TESTNET",
+    abiJson: JSON.stringify(artifact.abi),
+    bytecode: artifact.bytecode.object,
+    constructorParameters: [dep.usdc, dep.admin],
+    feeLevel: "MEDIUM",
+    entitySecretCiphertext: await cipher(),
+  }),
+});
+```
+
+Circle wallets reserve about $0.4 of gas per transaction up front, so small wallets fail with a confusing error. `pnpm exec tsx scripts/topup-gas.ts` tops them up, and the gateway's `/v1/health` warns when the attestor or keeper runs low.
+
+### NVIDIA Nemotron — Sentinel-05's model
+
+**What we use it for.** Sentinel-05 runs the hardened pipeline on Nemotron through NVIDIA's OpenAI-compatible API. The pipeline carries its own model (`llm` on the pipeline), so adding it does not change any existing agent's config hash. The model id comes from NVIDIA's public model list (default `nvidia/nemotron-3-ultra-550b-a55b`, override with `NVIDIA_MODEL`; thinking is off by default for speed, `NVIDIA_THINKING=on` turns it on).
+
+```ts
+// apps/agents/src/llm.ts — strict schema first, JSON mode if the endpoint rejects it, always validated locally
+let { res, body } = await call("json_schema");
+if (res.status === 400 || res.status === 422) ({ res, body } = await call("json_object")); // schema goes in the prompt
+const data = extractJson(text);                                   // tolerates code fences and reasoning preambles
+const problem = validateAgainstSchema(opts.schema, data);
+if (problem) return { ok: false, reason: `LLM answer failed schema validation (${problem})` }; // fails safe: hold, never pay
+```
+
+Check your key and the model with `LLM_PROVIDER=nvidia pnpm exec tsx scripts/llm-check.ts`: it validates the key, lists the model, and asks it for one real decision on a sample invoice.
+
+### Meterless H-MEM — the attack memory
+
+**What we use it for.** Meterless's H-MEM engine keeps memories in short, working and long-term tiers with provenance, confidence and an audit ledger. That is the shape of an attack memory, so `packages/memory` follows it behind a `MemoryBackend` interface:
+
+```ts
+// packages/memory — what the keeper writes after a session settles, and what an agent reads before it decides
+await memory.remember({ sessionId: "51", agent: "naive-00", channel: "invoice",
+                        payload, decision: "pay", outcome: "paid_attacker", txHash });   // long-term, confidence 0.95
+const hits = await memory.recall(newestInboxItem, 5);   // [{ id: "mem_…", similarity, tier, outcome, confidence, provenance }]
+if (hits.some(isKnownExploit)) flags.push("matches_known_exploit");   // forces escalate, cites the memory id
+```
+
+Successful exploits are long-term and never age out; blocked attempts start short-term and age into working memory. Every record commits to the one before it, so `verifyLedger()` detects tampering.
+
+### Zetaris — payee evidence in one federated query
+
+**What we use it for.** The facts about a payout address live in three places: payment events indexed from the chain, attack sessions in Postgres, and the vendor registry. One federated query through Zetaris's SQL Query API answers the whole question, so the agent does not stitch three lookups together:
+
+```sql
+-- packages/shared/src/evidence.ts (payeeSqlFederated): one query across the three registered sources
+SELECT 'payments' AS kind, CAST(COUNT(*) AS STRING) AS a, CAST(COALESCE(SUM(amount), 0) AS STRING) AS b, CAST(MIN(ts) AS STRING) AS c
+  FROM arena_chain.payments WHERE lower(to_addr) = lower('0x…')
+UNION ALL
+SELECT 'attacker_session', CAST(id AS STRING), CAST(NULL AS STRING), CAST(NULL AS STRING)
+  FROM arena_pg.sessions WHERE state = 2 AND lower(attacker) = lower('0x…')
+UNION ALL … latest invoice ref … UNION ALL … arena_registry.vendors …
+```
+
+```ts
+// apps/agents/src/evidence.ts — the documented flow: start, page, close; API key as the Bearer token
+POST   /api/v1.0/query/sql/start          { select, pageLimit }      headers: Authorization: Bearer <API key>, X-Org-ID, X-Request-ID
+GET    /api/v1.0/query/sql/page           ?queryToken&pageLimit&pageNumber
+DELETE /api/v1.0/query/sql/close/{token}  (always, so the query never stays open)
+```
+
+Set `ZETARIS_ORG_ID` and `ZETARIS_API_KEY`, and register three databases in your Zetaris workspace (names in `ZETARIS_SCHEMA_PG`, `ZETARIS_SCHEMA_CHAIN`, `ZETARIS_SCHEMA_REGISTRY`; the chain-event payments and the sessions come from the Arena Postgres, the registry is exported from `apps/agents/src/fixtures.ts`). The result becomes a validator in the decision log, named `zetaris_payee_history` when Zetaris answered and `ledger_payee_history` when the gateway's own Postgres did, so a log line never claims a source that did not answer.
+
+### Summary
+
+| Partner | What we used | Where in the repo |
+|---|---|---|
+| **Arc** | USDC settlement and gas, chain `5042002`, the fee-floor guard | `contracts/`, `packages/shared/src/chain.ts`, `packages/shared/src/arc-guard.ts` |
+| **Circle Wallets** | Agent signers, `contractExecution` | `apps/agents/src/circle.ts`, `scripts/circle-setup.ts` |
+| **Circle Gateway (x402)** | $0.005 paid attack messages | `apps/gateway/src/x402.ts`, `scripts/x402-demo.ts` |
+| **Circle Contracts** | GrantPool deployed through the API | `scripts/circle-contracts-demo.ts` |
+| **NVIDIA Nemotron** | Sentinel-05's model, JSON-mode fallback, local schema validation | `apps/agents/src/llm.ts`, `apps/agents/src/definitions.ts` |
+| **Meterless H-MEM** | Tiered attack memory with provenance, confidence and an audit ledger | `packages/memory`, `apps/keeper/src/memory.ts` |
+| **Zetaris** | One federated payee-evidence query | `apps/agents/src/evidence.ts`, `packages/shared/src/evidence.ts` |
+
+---
+
+## 13. Status and honest limitations
+
+| Tool | Status |
+|---|---|
+| **USDC on Arc** | ✅ all bounties, fees, payouts, treasury and gas |
+| **Circle Wallets** (developer-controlled) | ✅ the reference agents sign **only** through Circle wallets on `ARC-TESTNET` (`apps/agents/src/circle.ts`; keys never touch our env). Verified live: a Circle-signed contract call ([tx](https://explorer.testnet.arc.io/tx/0x0e18e3b64e009e97ee765bf3e31ae0bc7fa880a69e2a8d69d7d5dc60a2694156)) and a production payment by Treasurer-01 ([tx](https://explorer.testnet.arc.io/tx/0xd662835df6fb2094407ac58dd3551816d68e4e8cf1b843b9c4c7c3c95f36f0e2)). Enable with `CIRCLE_API_KEY` then `pnpm circle:setup` |
+| **x402 / Gateway Nanopayments** | ✅ metered attack messages: `POST /v1/x402/sessions/:sid/messages` costs $0.005, paid with a gasless EIP-3009 signature settled through Circle Gateway (`apps/gateway/src/x402.ts`, exposed on the gateway's own public port). Verified live: 3 paid messages in a round, then an attested close (`X402_DEMO_URL=<gateway-url> pnpm x402:demo`). x402 is the API/agent path |
+| **Circle Contracts** (Smart Contract Platform API) | ✅ a GrantPool deployed through the API from a Circle wallet: [0x6cb0…6783](https://explorer.testnet.arc.io/address/0x6cb06dbf56c153c7c45fd40f0a75edf446aa6783) (`scripts/circle-contracts-demo.ts`); the production contracts were deployed with Foundry |
+| **NVIDIA Nemotron** | The provider, JSON-mode fallback and schema validation are exercised against a mocked endpoint (`pnpm selftest`). Calling the real endpoint needs your `NVIDIA_API_KEY`: `LLM_PROVIDER=nvidia pnpm exec tsx scripts/llm-check.ts` |
+| **Meterless H-MEM** | The attack memory is our own implementation of the H-MEM shape (tiers, provenance, confidence, audit ledger) behind `MemoryBackend`. Meterless's own code is not vendored; an H-MEM adapter can replace `LocalMemory` without touching the agents or the keeper |
+| **Zetaris** | The federated query runs through Zetaris's SQL Query API (start, page, close) with `ZETARIS_ORG_ID` and `ZETARIS_API_KEY`, following the published OpenAPI spec. Exercised against a mocked Zetaris server (headers, body, paging, close, fallback); a live run needs your credentials and the three databases registered in your workspace. Without Zetaris configured, or if it fails, the gateway's Postgres answers and the log says `ledger`, not `zetaris` |
+
+**What is verified:** 51 contract tests including the invariants *lockedBounty ≤ bountyPool*, *payout ≤ lockedBounty*, *a breach pays only that session's attacker*, *production spend ≤ daily limit unless co-signed*, and *a breach forces tier 0*; live end-to-end checks on Arc testnet; and `pnpm selftest` plus `scripts/selftest-db.ts` for memory, payee evidence, the NVIDIA call path and the "Why" evidence rules (no network, no keys, no database).
+
+**Honest limitations**
+
+- **The score is not a safety guarantee.** It is positioned as "survived N attacks worth $B by U attackers in W days", and the limit is capped at the proven bounty.
+- **Survival credit trusts the gateway attestor** (a documented assumption; the roadmap is multi-attestor and TEE). A **breach never depends on it**.
+- **Non-determinism:** Gauntlet replays use temperature 0 and require all three runs to pass.
+- **Memory similarity is lexical** (shared words and shared payout addresses), not an embedding model. A heavily paraphrased attack to a fresh address can slip past the memory match and is then judged by the agent's own defences. Only *successful* exploits trigger the automatic escalation; blocked attempts are recalled as context only, so an attacker cannot get a legitimate message escalated by planting blocked attempts.
+- **Gauntlet replays do not use memory.** Shadow replays judge each agent's own defences; otherwise a hardened agent would "pass" an exploit only because it remembered that very exploit.
+- **Memory and payee endpoints** (`POST /v1/memory/recall`, `GET /v1/evidence/payee/:address`) expose summaries of attack messages that the public exploit corpus already shows. Set `MEMORY_TOKEN` to require a bearer token.
+- **Sentinel-05 lives on-chain once it is registered and funded** (`SEED_ONLY=sentinel-05 pnpm seed:arc`); until then the arena lists the other agents.
+- **Bugs found and fixed during the build** (all have regression tests): a concurrent session on an already-breached agent could still be closed as "survived" (found by the invariant fuzzer), zero- or one-message sessions counted toward tier gates, and memory records read back from Postgres failed ledger verification because JSONB reorders keys (the hash is now taken over canonical JSON).
+
+Threat model with mitigations: [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md).
+
+---
+
+## 14. API and further reading
+
+Gateway (`/v1`): `auth/siwe/nonce|verify` · `agents`, `agents/:id`, `/standing`, `/sessions`, `/payments`, `/gauntlet`, `/decisions`, `/anchors`, `/payables/run` (owner), `/escalations[/:eid/approve]` (owner) · `sessions`, `sessions/:sid`, `/transcript`, `/messages` (attacker), `/end`, `/publish`, `/stream` (SSE) · `exploits`, `exploits/:id`, `/replay` · `metrics` · `events` · `stream` (global SSE) · `leaderboard/attackers` · `config`.
+
+- Agent protocol: [docs/AAP.md](docs/AAP.md)
+- Threat model: [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md)
+- Deployment notes: [docs/DEPLOY.md](docs/DEPLOY.md)
+- Platform reference notes (sourced, with how this repo handles each fact): [docs/reference/](docs/reference/README.md) — [Arc chain & EVM differences](docs/reference/arc.md) · [Circle stack](docs/reference/circle.md) · [three.js r170 APIs used by the 3D arena](docs/reference/threejs.md)
+
+## License
+
+MIT
