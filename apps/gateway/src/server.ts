@@ -5,7 +5,8 @@ import Fastify, { type FastifyReply } from "fastify";
 import cors from "@fastify/cors";
 import { getAddress, type Address, type Hex } from "viem";
 import { getDb, computeMetrics, isEmbedded, type Db } from "@arena/db";
-import { arenaCoreAbi, scoreRegistryAbi, type InboxItem } from "@arena/shared";
+import { memoryOverDb } from "@arena/memory";
+import { arenaCoreAbi, payeeSqlLocal, scoreRegistryAbi, toLedgerRow, type InboxItem } from "@arena/shared";
 import { env } from "@arena/shared/node";
 import { authAddress, issueToken, newNonce, verifySiwe } from "./auth";
 import { publish, sse } from "./bus";
@@ -266,6 +267,28 @@ app.post<{ Params: { id: string }; Body: { agentId?: string } }>("/v1/exploits/:
     now,
   ]);
   return { queued: true };
+});
+
+// ───────────────────────────── attack memory & payee evidence (read by the agents) ─────────────────────────────
+// MEMORY_TOKEN, when set, must be sent as a bearer token. Both endpoints only read data the exploit corpus already exposes.
+function requireMemoryToken(req: { headers: Record<string, unknown> }) {
+  const t = process.env.MEMORY_TOKEN;
+  if (t && req.headers.authorization !== `Bearer ${t}`) throw new HttpError(401, "memory token required");
+}
+
+app.post<{ Body: { item?: { subject?: string; body?: string; from?: string }; k?: number } }>("/v1/memory/recall", async (req) => {
+  requireMemoryToken(req);
+  const item = req.body?.item;
+  if (!item || typeof item.body !== "string") throw new HttpError(400, "item.body is required");
+  const k = Math.min(10, Math.max(1, Number(req.body?.k) || 5));
+  return { hits: await memoryOverDb(db).recall({ subject: item.subject, body: item.body.slice(0, 4000), from: item.from }, k) };
+});
+
+app.get<{ Params: { address: string } }>("/v1/evidence/payee/:address", async (req) => {
+  requireMemoryToken(req);
+  if (!/^0x[a-fA-F0-9]{40}$/.test(req.params.address)) throw new HttpError(400, "bad address");
+  const row = await db.one<Record<string, unknown>>(payeeSqlLocal(req.params.address));
+  return toLedgerRow(row ?? {});
 });
 
 // ───────────────────────────── feeds & metrics ─────────────────────────────

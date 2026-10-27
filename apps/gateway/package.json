@@ -11,6 +11,7 @@
   "dependencies": {
     "@arena/db": "workspace:*",
     "@arena/keeper": "workspace:*",
+    "@arena/memory": "workspace:*",
     "@arena/shared": "workspace:*",
     "@circle-fin/x402-batching": "^3.5.0",
     "@fastify/cors": "^11.0.0",
