@@ -1,0 +1,17 @@
+{
+  "chainId": 5042002,
+  "usdc": "0x3600000000000000000000000000000000000000",
+  "registry": "0xf88a5c69f2e73100b69027d2962160946c8ed28e",
+  "score": "0xba76ecfb6a9152e3a8759d0e338ba98389d0f1c2",
+  "arena": "0x1654f583cc348688765dd398c6f0dc8b11d9d5e8",
+  "grantPool": "0xa9b0432611d88aeae594e636cb8509a8aea5fac9",
+  "exploits": "0xde8bda671d4b827026915bbed30ac153f94c2ffb",
+  "factory": "0x7da6df7d82f605cb966ff3ef5040727f6a8ebcd8",
+  "walletImpl": "0x59ae69a9551f112f38018b4a8d9e9212d61a2d42",
+  "admin": "0x8dBdE3150a374dd92c61eCD9aCF3F587C31b98E8",
+  "attestor": "0x323B2db406DA6321d2fb7983C50Fc28Ee01bf5E6",
+  "keeper": "0xaF81044f960a8e8cf5A7Ff08A417f174b16d9696",
+  "demoFastTiers": true,
+  "startBlock": 67449555,
+  "deployedAt": "2026-10-16T05:24:20.137Z"
+}
