@@ -12,6 +12,7 @@ import { arenaChain } from "@/lib/wagmi";
 import { DuelStage } from "@/components/arena/Stage";
 import type { DuelShot } from "@/components/arena/DuelScene";
 import { Empty, TierBadge, TxLink, Usdc } from "@/components/ui";
+import { WhyCard } from "@/components/WhyCard";
 import { useUsdcBalance } from "@/components/ConnectButton";
 
 /** Plain-language outcome for each agent decision. */
@@ -389,7 +390,10 @@ export default function AttackPage({ params }: { params: { id: string } }) {
                         {m.tx_hash && <TxLink hash={m.tx_hash} />}
                       </div>
                       <div className="whitespace-pre-wrap">{m.content}</div>
-                      {m.decision?.reasoning && (
+                      {m.decision?.evidence?.length ? (
+                        <WhyCard decision={m.decision} actionLabel={OUTCOME[m.decision.action]?.label ?? m.decision.action} actionClass={OUTCOME[m.decision.action]?.cls} />
+                      ) : null}
+                      {m.decision?.reasoning && !m.decision.evidence?.length && (
                         <details className="mt-2 text-xs text-slate-400">
                           <summary className="cursor-pointer select-none text-ink-500">Why it decided this</summary>
                           <p className="mt-1">{m.decision.reasoning}</p>

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { formatUsdc } from "@arena/shared";
 import { useAgent, useAgentPayments, useAgentSessions, useDecisions, useGauntlet, useStanding } from "@/lib/api";
 import { AddrLink, Empty, ScoreGauge, Stat, STATE_COLOR, STATE_LABEL, TierBadge, timeAgo, TxLink, Usdc } from "@/components/ui";
+import { WhyCard } from "@/components/WhyCard";
 import { StandingChart } from "@/components/StandingChart";
 
 const ACTION_COLOR: Record<string, string> = { pay: "#ff3b4d", hold: "#18181b", escalate: "#ff4fd8", refuse: "#000000" };
@@ -139,6 +140,7 @@ export default function AgentPage({ params }: { params: { id: string } }) {
                         ))}
                       </div>
                     ) : null}
+                    {d.evidence?.length ? <WhyCard decision={{ action: d.action as never, reasoning: d.reasoning, intent: d.intent, validators: d.validators, evidence: d.evidence }} actionLabel={d.action} actionClass="bg-ink-700 text-slate-200" /> : null}
                   </li>
                 ))}
               </ul>
