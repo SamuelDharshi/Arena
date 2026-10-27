@@ -1,0 +1,143 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* White & black theme. `.theme-dark` restores the original dark palette (used only around the 3D arena/duel). */
+:root {
+  color-scheme: dark;
+  --ink-950: 8 8 8;
+  --ink-900: 18 11 6;
+  --ink-800: 30 18 9;
+  --ink-700: 62 38 18;
+  --ink-600: 100 58 24;
+  --ink-500: 214 150 96;
+  --slate-100: 255 237 213;
+  --slate-200: 253 220 180;
+  --slate-300: 253 200 140;
+  --slate-400: 214 150 96;
+  --fg: 255 237 213;
+}
+.theme-dark {
+  color-scheme: dark;
+  --ink-950: 6 4 3;
+  --ink-900: 14 9 5;
+  --ink-800: 26 16 8;
+  --ink-700: 52 32 16;
+  --ink-600: 90 52 22;
+  --ink-500: 214 150 96;
+  --slate-100: 255 237 213;
+  --slate-200: 253 220 180;
+  --slate-300: 253 200 140;
+  --slate-400: 214 150 96;
+  --fg: 255 237 213;
+}
+
+html,
+body {
+  overflow-x: clip;
+  background: #0a0a0a;
+  color: #ffedd5;
+}
+
+body {
+  overflow-x: clip;
+  font-family: var(--font-display), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+@layer components {
+  .panel {
+    @apply rounded-2xl border border-ink-700 bg-ink-900 shadow-sm;
+  }
+  .panel-title {
+    @apply font-mono text-[11px] uppercase tracking-[0.18em] text-[#d69660];
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-40;
+  }
+  .btn-primary {
+    @apply btn bg-accent text-black hover:brightness-110;
+  }
+  .btn-danger {
+    @apply btn bg-breach text-[#fff] hover:brightness-110;
+  }
+  .btn-ghost {
+    @apply btn border border-ink-600 text-slate-200 hover:border-accent hover:bg-ink-800;
+  }
+  .input {
+    @apply w-full rounded-lg border border-ink-600 bg-ink-950 px-3 py-2 font-mono text-sm text-slate-100 outline-none placeholder:text-ink-500 focus:border-accent;
+  }
+  .label {
+    @apply mb-1 block font-mono text-[11px] uppercase tracking-wider text-ink-500;
+  }
+  .num {
+    @apply font-mono tabular-nums;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: #ff6a1a;
+  border-radius: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* Landing page (white & black theme) */
+.landing-connect .btn-primary {
+  background: #ff6a1a;
+  color: #000000;
+}
+.landing-connect .btn-primary:hover {
+  filter: brightness(1.1);
+}
+.landing-connect .btn-ghost {
+  border-color: #ff6a1a;
+  color: #ff6a1a;
+}
+
+/* Inside the 3D arena keep the original label colour. */
+.theme-dark .panel-title {
+  color: rgb(var(--ink-500));
+}
+
+/* One heading font everywhere: bold italic Playfair Display (the 3D arena keeps its own text). */
+.font-heading {
+  font-style: italic;
+}
+h1,
+h2,
+h3 {
+  font-family: var(--font-italic), Georgia, serif;
+  font-style: italic;
+  font-weight: 800;
+}
+.theme-dark h1,
+.theme-dark h2,
+.theme-dark h3 {
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-style: normal;
+  font-weight: 700;
+}
+
+/* Small uppercase section labels stay plain (they are h2 elements but not display headings). */
+h1.panel-title,
+h2.panel-title,
+h3.panel-title {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-style: normal;
+  font-weight: 400;
+}
+
+body { overflow-x: clip; }
