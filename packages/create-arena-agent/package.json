@@ -1,0 +1,9 @@
+{
+  "name": "create-arena-agent",
+  "version": "0.1.0",
+  "description": "npx create-arena-agent <dir> — scaffold an Arena (AAP v0) agent in under a minute",
+  "type": "module",
+  "bin": { "create-arena-agent": "bin.mjs" },
+  "files": ["bin.mjs", "template"],
+  "license": "MIT"
+}

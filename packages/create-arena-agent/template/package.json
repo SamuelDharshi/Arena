@@ -1,0 +1,14 @@
+{
+  "name": "my-arena-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/agent.ts",
+    "test": "tsx src/test-turn.ts"
+  },
+  "dependencies": {
+    "@arena/aap-sdk": "__ARENA_SDK_SPEC__",
+    "tsx": "^4.19.2"
+  }
+}
