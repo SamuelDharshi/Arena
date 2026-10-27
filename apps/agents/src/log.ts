@@ -25,6 +25,7 @@ export interface DecisionRecord {
   reasoning: string;
   intent: Decision["intent"];
   validators: Decision["validators"];
+  evidence?: Decision["evidence"];
   txHash: string | null;
   error?: string;
   prevHash: Hex;
