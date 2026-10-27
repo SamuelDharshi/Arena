@@ -1,0 +1,44 @@
+node_modules/
+.env
+.env.local
+contracts/out/
+contracts/cache/
+contracts/broadcast/*/31337/
+.next/
+dist/
+data/
+*.log
+.turbo/
+data-*/
+.env.*
+!.env.example
+.logs/
+deployments/31337.json
+*.tsbuildinfo
+apps/web/next-env.d.ts
+
+# local agent tooling (Higgsfield skills etc.)
+.agents/
+.claude/skills/
+skills-lock.json
+
+# vendored Solidity deps (install with: cd contracts && forge install)
+contracts/lib/
+
+# unused third-party reference clip
+apps/web/public/images/referrrence.mp4
+
+# Vercel CLI link
+.vercel
+
+# earlier planning documents (not part of the codebase)
+agent-arena-prd.md
+01-agent-arena-PRD.md
+
+# editor, OS and local-only files
+.DS_Store
+Thumbs.db
+*.pem
+.env*.local
+coverage/
+nul

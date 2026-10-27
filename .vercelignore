@@ -1,0 +1,13 @@
+contracts/lib
+contracts/out
+contracts/cache
+contracts/broadcast
+data
+data-local
+.logs
+.agents
+.claude
+.env*
+node_modules
+**/node_modules
+**/.next

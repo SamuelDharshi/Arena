@@ -1,0 +1,52 @@
+# Render Blueprint — deploys the Arena backend on Render's FREE plan.
+#   Render dashboard → New → Blueprint → pick this repo → fill the secrets marked "sync: false" → Apply.
+# The web app is deployed separately on Vercel (apps/web). Full guide: docs/DEPLOY.md.
+#
+# Free-plan notes: services sleep after ~15 min without traffic (first request then takes ~50 s) and the free
+# Postgres is kept for 30 days. While the gateway sleeps the keeper is paused; it catches up from its cursor on wake.
+databases:
+  - name: arena-db
+    plan: free
+    databaseName: arena
+    user: arena
+
+services:
+  # ── AI agents (AAP endpoint + production payables) ──
+  - type: web
+    name: agent-arena-agents
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm install -g pnpm@10.33.2 && pnpm install --frozen-lockfile --prod=false
+    startCommand: pnpm start:agents
+    healthCheckPath: /health
+    envVars:
+      - { key: NODE_VERSION, value: 22.13.1 }
+      - { key: GROQ_API_KEY, sync: false }
+      - { key: CIRCLE_API_KEY, sync: false }
+      - { key: CIRCLE_ENTITY_SECRET, sync: false }
+      - { key: CIRCLE_WALLET_ID_NAIVE00, sync: false }
+      - { key: CIRCLE_WALLET_ID_TREASURER01, sync: false }
+      - { key: CIRCLE_WALLET_ID_TREASURER02, sync: false }
+      - { key: VENDOR_SEED, sync: false }
+      - { key: DEMO_FAST_TIERS, value: "true" }
+
+  # ── Arena gateway (REST + SSE + attestor) with the keeper embedded ──
+  - type: web
+    name: agent-arena-gateway
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm install -g pnpm@10.33.2 && pnpm install --frozen-lockfile --prod=false
+    startCommand: pnpm start:gateway
+    healthCheckPath: /v1/config
+    envVars:
+      - { key: NODE_VERSION, value: 22.13.1 }
+      - { key: DATABASE_URL, fromDatabase: { name: arena-db, property: connectionString } }
+      - { key: RUN_KEEPER, value: "true" }
+      - { key: GATEWAY_PUBLIC_URL, value: https://agent-arena-gateway.onrender.com }
+      - { key: DEMO_FAST_TIERS, value: "true" }
+      - { key: GATEWAY_ATTESTOR_KEY, sync: false }
+      - { key: KEEPER_KEY, sync: false }
+      - { key: GATEWAY_JWT_SECRET, sync: false }
+      - { key: VENDOR_SEED, sync: false }
