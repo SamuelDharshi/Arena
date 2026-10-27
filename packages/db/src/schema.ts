@@ -158,6 +158,12 @@ CREATE TABLE IF NOT EXISTS auth_nonces (
   created_at BIGINT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS attack_memory (
+  id TEXT PRIMARY KEY,
+  rec JSONB NOT NULL,
+  created_at BIGINT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS jobs (
   id TEXT PRIMARY KEY,
   kind TEXT NOT NULL,
