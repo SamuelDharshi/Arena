@@ -63,6 +63,7 @@ GATEWAY_PUBLIC_URL=http://localhost:9787
 AGENTS_PORT=9788
 AGENTS_PUBLIC_URL=http://localhost:9788
 NEXT_PUBLIC_GATEWAY_URL=http://localhost:9787
+CIRCLE_DISABLED=1
 `,
   );
 

@@ -19,7 +19,7 @@ async function main() {
     { name: "gateway attestor", address: dep.attestor },
     { name: "keeper", address: privateKeyToAccount(env.key("KEEPER_KEY")).address },
   ];
-  for (const slug of ["naive-00", "treasurer-01", "treasurer-02", "clerk-03", "auditor-04"]) {
+  for (const slug of ["naive-00", "treasurer-01", "treasurer-02", "clerk-03", "auditor-04", "sentinel-05"]) {
     const id = circleWalletId(slug);
     if (id) targets.push({ name: `circle wallet ${slug}`, address: await circleWalletAddress(id) });
   }

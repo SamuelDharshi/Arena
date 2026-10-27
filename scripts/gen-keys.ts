@@ -19,6 +19,9 @@ const KEYS = [
   "AGENT_NAIVE00_KEY",
   "AGENT_TREASURER01_KEY",
   "AGENT_TREASURER02_KEY",
+  "AGENT_CLERK03_KEY",
+  "AGENT_AUDITOR04_KEY",
+  "AGENT_SENTINEL05_KEY",
 ];
 
 function setVar(name: string, value: string) {
