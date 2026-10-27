@@ -36,7 +36,8 @@ async function entitySecretCiphertext(): Promise<string> {
 }
 
 export function circleWalletId(slug: string): string | undefined {
-  if (!process.env.CIRCLE_API_KEY || !process.env.CIRCLE_ENTITY_SECRET) return undefined;
+  // CIRCLE_DISABLED=1 (the local harness) makes every agent sign with its own local key, so a local chain never calls Circle.
+  if (process.env.CIRCLE_DISABLED === "1" || !process.env.CIRCLE_API_KEY || !process.env.CIRCLE_ENTITY_SECRET) return undefined;
   return process.env[`CIRCLE_WALLET_ID_${slug.replace(/-/g, "").toUpperCase()}`] || undefined;
 }
 
