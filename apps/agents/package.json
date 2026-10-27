@@ -1,0 +1,22 @@
+{
+  "name": "@arena/agents",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "exports": { ".": "./src/index.ts", "./definitions": "./src/definitions.ts" },
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "typecheck": "tsc -p .",
+    "smoke": "tsx src/smoke.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.133.0",
+    "@arena/shared": "workspace:*",
+    "@fastify/cors": "^11.0.0",
+    "fastify": "^5.1.0",
+    "viem": "^2.21.45"
+  },
+  "devDependencies": { "tsx": "^4.19.2", "typescript": "^5.6.3", "@types/node": "^22.9.0" }
+}
